@@ -1,0 +1,37 @@
+* Backup With ~rsync~
+
+  Does what it says. Useful for frequent syncing between two devices with
+  similar directory hierarchies. I use it for daily copying (over ssh) between
+  one laptop (desktop replacement at home) to the other (more portable laptop).
+
+** Why?
+
+   ~rsync~ has a lot of switches, and it's exhausting to loop over them with say
+   ~--delete~ flag for certain directories and not for others. With this script
+   one can specify all that in a configuration file and just sync whenever you
+   want.
+
+* Features
+  - ~yaml~ configuration to specify directories and flags
+  - Overriding arguments supported at command line.
+  - Sensible ~rsync~ defaults
+
+* Example configuration
+
+  #+begin_src yaml
+    host:
+      user@portable
+    root:
+      /home/user
+    supported_dirs:
+      Documents:
+        delete: false
+      Downloads:
+        delete: false
+      Mail:
+        delete: true
+      Videos:
+        delete: true
+
+  #+end_src
+
