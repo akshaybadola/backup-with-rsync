@@ -1,11 +1,22 @@
+import shlex
 from setuptools import setup
-
 from rsync_backup import __version__
 
 description = "Simple backup wrapper with configuration over rsync for regularly backing up via command line."
 
-with open("README.org") as f:
-    long_description = f.read()
+try:
+    from common_pyutil.proc import which, call
+    with open("README.org") as f:
+        long_description = f.read()
+        pandoc = which("pandoc")
+        if "no pandoc" in pandoc:
+            print("Cannot convert long description as pandoc not found.\n" +
+                  "Long description will be set to same as short description")
+        else:
+            long_description, _ = call(shlex.split("pandoc -f org -t rst"), input=long_description)
+except ModuleNotFoundError:
+    print("common_pyutil not found. Will not read long description")
+    long_description = ""
 
 setup(
     name="backup-with-rsync",
@@ -15,6 +26,7 @@ setup(
     url="https://github.com/akshaybadola/backup-with-rsync",
     author="Akshay Badola",
     license="MIT",
+    long_description_content_type="text/x-rst",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -34,7 +46,7 @@ setup(
     install_requires=["PyYAML"],
     entry_points={
         'console_scripts': [
-            'backup-with-rsync = rsync_backup.__main__:main',
+            'backup-with-rsync = rsync_backup.rsync:main',
         ],
     }
 )
