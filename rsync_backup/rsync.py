@@ -425,7 +425,9 @@ def list_and_exit(configured_dirs: Optional[Dict[str, Any]]) -> None:
 
 def main() -> int:
     default_config_file = Path.home().joinpath(".rsync-backup")
-    usage = """\tSimple script to manage backup of similar directory structures across hosts.
+    usage = """\tRsync backup tool.
+
+\tSimple script to manage backup of similar directory structures across hosts.
 
 \tThe directories to backup can be read from a config file and the required
 \tdirectories can be backed up.
@@ -441,17 +443,36 @@ def main() -> int:
 \t:code:`delete` simply passes on the --delete flag to :code:`rsync`
 
 """
-    parser = argparse.ArgumentParser("Rsync backup tool",
-                                     usage=usage,
-                                     formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--dirs", default="", help="Comma separated list of directories to backup")
+    parser_kwargs = {"prog": "Rsync backup tool",
+                     "usage": usage,
+                     "allow_abbrev": False,
+                     "formatter_class": argparse.RawTextHelpFormatter,
+                     "add_help": False}
+    init_parser = argparse.ArgumentParser(**parser_kwargs)
+    init_parser.add_argument("-h", "--help", action="store_true",
+                             help="show this help message and exit")
+    init_parser.add_argument("-c", "--config-file", default=default_config_file,
+                             type=Path, help="Path to yaml configuration file." +
+                             " Defaults to $HOME/.rsync_backup")
+    init_parser.add_argument("--print-config", action="store_true",
+                             help="Print the resolved config file and exit")
+    init_parser.add_argument("--host", help="Remote host to backup")
+    init_parser.add_argument("--list", action="store_true",
+                             help="List the supported/configured directories in configuration and exit.")
+    init_parser.add_argument("--check-host", help="Only check host. Don't do anything else",
+                             action="store_true")
+    init_parser.add_argument("-v", "--verbosity", choices=["info", "debug", "warning", "error"],
+                             default="info", help="stdout verbosity")
+    init_parser.add_argument("--logfile", help="Log file for backup")
+
+    parser = argparse.ArgumentParser(**parser_kwargs)
+    parser.add_argument("dirs", default="", help="Comma separated list of directories to backup")
     parser.add_argument("--targets", default="", help="Comma separated list of target directories")
-    parser.add_argument("--list", action="store_true",
-                        help="List the supported/configured directories in configuration and exit.")
     parser.add_argument("--exclude-with-subdirs", action="store_true",
-                        help="Do not backup any directory which has \"subdirs\" attribute.")
+                        help="Do not backup any configured directory which has \"subdirs\" attribute.")
     parser.add_argument("--exclude-subdirs", type=str,
-                        help="Exclude these subdirs from all directories where subdir parameter is true.")
+                        help="Exclude these subdirs from all configured directories "
+                        "where \"subdir\" parameter is true")
     parser.add_argument("--force", action="store_true",
                         help="Force allow --delete option on unconfigured directories")
     parser.add_argument("--delete", action="store_true",
@@ -459,13 +480,12 @@ def main() -> int:
     parser.add_argument("--no-delete", action="store_true",
                         help="Do not delete even if given in config")
     parser.add_argument("--exclude", type=str, default="",
-                        help="Exclude giver comma separated strings."
-                        " These exclusions are appended to any given in the config.")
+                        help="Exclude given comma separated strings/globs."
+                        " These exclusions are appended to any given in the config.\n"
+                        "The exclusions are passed \"as is\" to rsync")
     parser.add_argument("--exclude-dirs", type=str, default="",
-                        help="Exclude comma separated list of given directories if \"all\" is given.")
-    parser.add_argument("--host", help="Remote host to backup")
-    parser.add_argument("--check-host", help="Only check host. Don't do anything else",
-                        action="store_true")
+                        help="Exclude comma separated list of directories from "
+                        "configured directories if \"all\" is given")
     parser.add_argument("-u", "--allow-unconfigured", dest="unconfigured", action="store_true",
                         help="Run on directories which are not configured."
                         " Use --list to see currently configured directories")
@@ -475,32 +495,39 @@ def main() -> int:
                         help="Show only list of files to be updated.")
     parser.add_argument("--from", dest="from_remote", action="store_true",
                         help="Sync from the remote host instead of to.")
-    parser.add_argument("--logfile", help="Log file for backup")
     parser.add_argument("--print-only", action="store_true",
                         help="Print the rsync command. Don't do anything not even dry-run.")
     parser.add_argument("--dry-run", action="store_true", help="Dry run.")
-    parser.add_argument("-v", "--verbosity", choices=["info", "debug", "warning", "error"],
-                        default="info", help="stdout verbosity")
-    parser.add_argument("-c", "--config-file", default=default_config_file,
-                        type=Path, help="Path to yaml configuration file." +
-                        " Defaults to $HOME/.rsync_backup")
-    args = parser.parse_args()
+    init_args, rest_args = init_parser.parse_known_args()
+    if init_args.help:
+        init_help_str = init_parser.format_help().replace(init_parser.format_usage(), "")\
+            .replace("\noptions:\n", "")
+        help_str = parser.format_help()
+        print(help_str + init_help_str)
+        sys.exit(0)
 
-    config = read_config(args.config_file)
+    config = read_config(init_args.config_file)
     configured_dirs = config.dirs
-    if (config and config.logfile) or args.logfile:
-        logfile = Path((config and config.logfile) or args.logfile)
-        create_logger(logfile, verbosity=args.verbosity)
+    if (config and config.logfile) or init_args.logfile:
+        logfile = Path((config and config.logfile) or init_args.logfile)
+        create_logger(logfile, verbosity=init_args.verbosity)
     else:
-        create_logger(None, args.verbosity)
+        create_logger(None, init_args.verbosity)
     logger = logging.getLogger("backup-rsync")
-    if args.list:
+    if init_args.list:
         list_and_exit(configured_dirs)
+    host = check_host_given(init_args, config.host)
 
-    host = check_host_given(args, config.host)
-    if args.check_host:
+    if init_args.check_host:
         logger.info(f"Host {host} is online")
         sys.exit(0)
+
+    if init_args.print_config:
+        print(yaml.dump(config.__dict__))
+        sys.exit(0)
+
+    args, _ = parser.parse_known_args()
+    args.__dict__.update(**init_args.__dict__)
     root_path = check_root_path(args, config.root)
     dirs = check_dirs(args, configured_dirs)
 

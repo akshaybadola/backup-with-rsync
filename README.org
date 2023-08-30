@@ -11,27 +11,99 @@
    one can specify all that in a configuration file and just sync whenever you
    want.
 
-* Features
-  - ~yaml~ configuration to specify directories and flags
-  - Overriding arguments supported at command line.
-  - Sensible ~rsync~ defaults
+   Example use case is when you have to sync your home system with work system
+   daily in case you share some data between the two.
 
-* Example configuration
+   Or frequent sync of some directories with specific excludes from
+   one system to the other.
 
-  #+begin_src yaml
-    host:
-      user@portable
-    root:
-      /home/user
-    supported_dirs:
-      Documents:
-        delete: false
-      Downloads:
-        delete: false
-      Mail:
-        delete: true
-      Videos:
-        delete: true
 
-  #+end_src
+** Features
+   - ~yaml~ configuration to specify directories and flags
+   - Overriding arguments supported at command line.
+   - Sensible ~rsync~ defaults
 
+
+** Requirements
+   - ~python~, ~pyyaml~, ~rsync~, ~ssh~, ~nc~
+   - ~nc~ is required for checking if host is online.
+
+
+** Example configuration
+
+   #+begin_src yaml
+     host:
+       user@portable
+     root:
+       /home/user
+     logfile:
+       /home/user/logs/backup.log
+     supported_dirs:
+       Documents:
+         # backup but don't use the --delete switch
+         delete: false
+       Downloads:
+         delete: false
+       Mail:
+         # backup with deleteion
+         delete: true
+       Videos:
+         delete: true
+       projects:
+         # backup after iterating over subdirectories
+         subdirs: true
+         delete: true
+     exclusions:                     # Global exclusions
+       - __pycache__
+       - .mypy_cache
+       - "*.pyc"
+       - "*.elc"
+   #+end_src
+
+** Example Usage
+
+   - *Sync all configured files*
+
+     #+begin_src bash
+       backup-with-rysnc all
+     #+end_src
+
+     Extra global exclusion in addition to configured
+     #+begin_src bash
+       backup-with-rysnc all --exclude '*someglob'
+     #+end_src
+
+
+   - *Sync only certain directories from ~config.yaml~*
+
+     #+begin_src bash
+       backup-with-rsync Documents,Downloads
+     #+end_src
+
+   - *Perform only a dry run*
+
+     #+begin_src bash
+       backup-with-rsync Documents,Downloads --dry-run
+     #+end_src
+
+   - *Only print the ~rsync~ command*
+
+     #+begin_src bash
+       backup-with-rsync Documents,Downloads --print-only
+     #+end_src
+
+   - *Backup directories not in config.yaml*
+     This will ask for confirmation
+
+     #+begin_src bash
+       backup-with-rsync /home/user/some_dir --unsupported
+
+       # delete requires `force` also
+       backup-with-rsync /home/user/some_dir --unsupported --force --delete
+     #+end_src
+
+   See ~backup-with-rsync --help~ for other help
+
+* License
+
+  Code is under MIT License. See LICENSE.md.
