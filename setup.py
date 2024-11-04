@@ -48,7 +48,7 @@ setup(
     install_requires=["PyYAML"],
     entry_points={
         'console_scripts': [
-            'backup-with-rsync = rsync_backup.rsync:main',
+            'backup-with-rsync = rsync_backup.__main__:main',
         ],
     }
 )

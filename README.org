@@ -28,7 +28,6 @@
    - ~python~, ~pyyaml~, ~rsync~, ~ssh~, ~nc~
    - ~nc~ is required for checking if host is online.
 
-
 ** Example configuration
 
    #+begin_src yaml
@@ -73,7 +72,6 @@
        backup-with-rysnc all --exclude '*someglob'
      #+end_src
 
-
    - *Sync only certain directories from ~config.yaml~*
 
      #+begin_src bash
@@ -96,10 +94,10 @@
      This will ask for confirmation
 
      #+begin_src bash
-       backup-with-rsync /home/user/some_dir --unsupported
+       backup-with-rsync /home/user/some_dir --allow-unconfigured
 
        # delete requires `force` also
-       backup-with-rsync /home/user/some_dir --unsupported --force --delete
+       backup-with-rsync /home/user/some_dir --allow-unconfigured --force --delete
      #+end_src
 
    See ~backup-with-rsync --help~ for other help

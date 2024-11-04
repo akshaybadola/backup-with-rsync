@@ -526,7 +526,7 @@ def main() -> int:
         print(yaml.dump(config.__dict__))
         sys.exit(0)
 
-    args, _ = parser.parse_known_args()
+    args, _ = parser.parse_known_args(rest_args)
     args.__dict__.update(**init_args.__dict__)
     root_path = check_root_path(args, config.root)
     dirs = check_dirs(args, configured_dirs)
@@ -543,6 +543,9 @@ def main() -> int:
         exclude_dirs = args.exclude_dirs.split(",")
         for d in exclude_dirs:
             dirs.pop(d)
+    if args.targets and len(args.targets.split(",")) != len(args.dirs.split(",")):
+        logger.error("Number of target dirs must be same as source dirs")
+        sys.exit(1)
     targets = args.targets and args.targets.split(",")
     check_delete_flag(args, dirs)
     i = 0
